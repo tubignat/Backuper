@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -9,6 +10,7 @@ import (
 func newSystemWatcher(filenames []string) *SystemWatcher {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
+		fmt.Println("Error has occured: ", err)
 	}
 	return &SystemWatcher{filenames, watcher}
 }
@@ -22,20 +24,30 @@ func (watcher *SystemWatcher) watchAsync(onFileChanged func(filename string), qu
 	fmt.Println("Start watching...")
 	addFileWatchers(watcher)
 	for {
-		watchAsyncInternal(watcher, onFileChanged, quit)
+		isClosed := watchAsyncInternal(watcher, onFileChanged, quit)
+		if isClosed {
+			return
+		}
 	}
 }
 
-func watchAsyncInternal(watcher *SystemWatcher, onFileChanged func(filename string), quit chan bool) {
+func watchAsyncInternal(watcher *SystemWatcher, onFileChanged func(filename string), quit chan bool) bool {
 	select {
 	case event := <-watcher.watcher.Events:
+		select {
+		case event = <-watcher.watcher.Events:
+		case <-time.After(time.Second):
+		}
 		fmt.Printf("File %s has been changed, operation is %s\n", event.Name, event.Op)
 		onFileChanged(event.Name)
+		return false
 	case err := <-watcher.watcher.Errors:
 		fmt.Println("Error has occured", err)
+		return false
 	case <-quit:
+		watcher.watcher.Close()
 		fmt.Println("Stop watching...")
-		break
+		return true
 	}
 }
 

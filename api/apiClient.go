@@ -1,4 +1,4 @@
-package main
+package api
 
 const (
 	Success Status = 1
@@ -6,12 +6,7 @@ const (
 )
 
 type ApiClient interface {
-	Fetch(filename string) FetchResult
 	Backup(filename string) BackupResult
-}
-
-type FetchResult struct {
-	Status Status
 }
 
 type BackupResult struct {
