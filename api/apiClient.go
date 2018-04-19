@@ -5,7 +5,7 @@ const (
 	Fail    Status = 2
 )
 
-type ApiClient interface {
+type Client interface {
 	Backup(filename string) BackupResult
 }
 

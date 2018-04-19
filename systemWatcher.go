@@ -23,6 +23,7 @@ type SystemWatcher struct {
 func (watcher *SystemWatcher) watchAsync(onFileChanged func(filename string), quit chan bool) {
 	fmt.Println("Start watching...")
 	addFileWatchers(watcher)
+	defer watcher.watcher.Close()
 	for {
 		isClosed := watchAsyncInternal(watcher, onFileChanged, quit)
 		if isClosed {
@@ -45,7 +46,6 @@ func watchAsyncInternal(watcher *SystemWatcher, onFileChanged func(filename stri
 		fmt.Println("Error has occured", err)
 		return false
 	case <-quit:
-		watcher.watcher.Close()
 		fmt.Println("Stop watching...")
 		return true
 	}

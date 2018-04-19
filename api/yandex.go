@@ -2,6 +2,7 @@ package api
 
 import (
 	"os/exec"
+	"time"
 )
 
 const (
@@ -9,6 +10,8 @@ const (
 )
 
 type YandexDiskApiClient struct {
+	Token   string
+	Expires time.Time
 }
 
 func Authenticate(applicationId string) {

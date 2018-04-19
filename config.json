@@ -1,5 +1,8 @@
 {
-    "ApplicationID" : "201581d56b834eaa8f4b59942be5f7be",
+    "Yandex": {
+        "ApplicationID" : "201581d56b834eaa8f4b59942be5f7be",
+        "Password" : "921a489d145745648479d0b3a9f60350"
+    },    
     "Files": [
         "C:\\Connector\\stuff\\file",
         "C:\\Connector\\stuff\\file2",

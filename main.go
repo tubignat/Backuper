@@ -1,41 +1,33 @@
 package main
 
 import (
+	"backuper/api"
+	"backuper/settings"
 	"fmt"
+	"time"
 )
 
 func main() {
-	restart := make(chan bool)
-	go watchConfig(func() {
-		restart <- true
-	})
-	go start(restart)
+	start()
 	readCommands()
 }
 
-func start(restart chan bool) {
-	var watcher *SystemWatcher
-	var settings *Settings
-	var stop chan bool
-	var stub Stub
-	for {
-		settings = loadSettings()
-		Authenticate(settings.ApplicationID)
-		fmt.Println("Program started...")
-
-		watcher = newSystemWatcher(settings.Files)
-		stop = make(chan bool)
-		stub = Stub{}
-
-		go watcher.watchAsync(getBackupFunc(stub), stop)
-
-		<-restart
-		stop <- true
-		fmt.Println("Restarting...")
+func start() {
+	keeper := settings.NewKeeper("config.json")
+	fmt.Println("Program started...")
+	settings := keeper.GetRelevantSettings()
+	if settings.Yandex.Token == "" || settings.Yandex.Expires.Before(time.Now()) {
+		api.Authenticate(settings.Yandex.ApplicationID)
 	}
+
+	watcher = newSystemWatcher(settings.Files)
+	stop = make(chan bool)
+	stub = api.Stub{}
+
+	go watcher.watchAsync(getBackupFunc(stub), stop)
 }
 
-func getBackupFunc(apiClient ApiClient) func(filename string) {
+func getBackupFunc(apiClient api.Client) func(filename string) {
 	return func(filename string) {
 		apiClient.Backup(filename)
 	}
