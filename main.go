@@ -4,27 +4,24 @@ import (
 	"backuper/api"
 	"backuper/settings"
 	"fmt"
-	"time"
+	"log"
 )
 
 func main() {
-	start()
+	go start()
 	readCommands()
 }
 
 func start() {
+	log.Print("Program started...")
 	keeper := settings.NewKeeper("config.json")
-	fmt.Println("Program started...")
 	settings := keeper.GetRelevantSettings()
-	if settings.Yandex.Token == "" || settings.Yandex.Expires.Before(time.Now()) {
-		api.Authenticate(settings.Yandex.ApplicationID)
-	}
+	yandexClient := api.NewYandexApiClient(settings.Yandex.ApplicationID)
+	watcher := newSystemWatcher(settings.Files)
+	stop := make(chan bool)
+	backupFunc := getBackupFunc(yandexClient)
 
-	watcher = newSystemWatcher(settings.Files)
-	stop = make(chan bool)
-	stub = api.Stub{}
-
-	go watcher.watchAsync(getBackupFunc(stub), stop)
+	go watcher.watchAsync(backupFunc, stop)
 }
 
 func getBackupFunc(apiClient api.Client) func(filename string) {

@@ -1,10 +1,15 @@
 package common
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 )
+
+func IsExist(filename string) bool {
+	_, err := os.Stat(filename)
+	return !os.IsNotExist(err)
+}
 
 func ReadFile(filename string) *[]byte {
 	content, error := ioutil.ReadFile(filename)
@@ -12,13 +17,4 @@ func ReadFile(filename string) *[]byte {
 		log.Panic(error)
 	}
 	return &content
-}
-
-func FromJSON(content []byte) interface{} {
-	var object interface{}
-	error := json.Unmarshal(content, &object)
-	if error != nil {
-		log.Fatal(error)
-	}
-	return object
 }

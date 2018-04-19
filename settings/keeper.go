@@ -2,6 +2,7 @@ package settings
 
 import (
 	"backuper/common"
+	"encoding/json"
 	"log"
 
 	"github.com/fsnotify/fsnotify"
@@ -47,7 +48,10 @@ func watchFileRoutine(watcher *fsnotify.Watcher, hasChanges *bool) {
 	}
 }
 func loadSettings(filename string) *Settings {
+	var settings Settings
 	content := common.ReadFile(filename)
-	settings, _ := common.FromJSON(*content).(Settings)
+	if error := json.Unmarshal(*content, &settings); error != nil {
+		log.Fatal(error)
+	}
 	return &settings
 }
