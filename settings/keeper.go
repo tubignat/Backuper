@@ -51,7 +51,7 @@ func loadSettings(filename string) *Settings {
 	var settings Settings
 	content := common.ReadFile(filename)
 	if error := json.Unmarshal(*content, &settings); error != nil {
-		log.Fatal(error)
+		log.Panic(error)
 	}
 	return &settings
 }

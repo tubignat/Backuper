@@ -18,3 +18,9 @@ func ReadFile(filename string) *[]byte {
 	}
 	return &content
 }
+
+func WriteFile(filename string, content *[]byte) {
+	if error := ioutil.WriteFile(filename, *content, 0644); error != nil {
+		log.Panic(error)
+	}
+}
