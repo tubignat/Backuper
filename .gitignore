@@ -15,3 +15,10 @@
 
 # Debug binary files
 debug
+
+bin
+pkg
+*.vscode
+src/github.com
+src/golang.org
+src/sourcegraph.com
