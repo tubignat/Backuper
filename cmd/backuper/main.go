@@ -14,17 +14,26 @@ func main() {
 }
 
 func start() {
-	logging.Info("Configuring...")
-	keeper := settings.NewKeeper("config.json")
-	settings := keeper.GetRelevantSettings()
-	yandexClient := api.NewYandexApiClient(settings.Yandex.ApplicationID)
-	watcher := newSystemWatcher(settings.Files)
-	stop := make(chan bool)
-	backupFunc := getBackupFunc(yandexClient)
+	for {
+		logging.Info("Configuring...")
 
-	go watcher.watchAsync(backupFunc, stop)
+		restart := make(chan bool)
+		keeper := settings.NewKeeper("config.json", restart)
+		settings := keeper.GetRelevantSettings()
+		yandexClient := api.NewYandexApiClient(settings.Yandex.ApplicationID)
+		watcher := newSystemWatcher(settings.Files)
+		stop := make(chan bool)
+		backupFunc := getBackupFunc(yandexClient)
 
-	logging.Info("Program started...")
+		go watcher.watchAsync(backupFunc, stop)
+
+		logging.Info("Program started...")
+
+		<-restart
+		stop <- true
+
+		logging.Info("Restarting...")
+	}
 }
 
 func getBackupFunc(apiClient api.Client) func(filename string) {

@@ -25,7 +25,7 @@ func main() {
 	directory := os.Args[1]
 	callback := os.Args[2]
 	logging.Configure(directory + "\\ouath_logs.txt")
-	keeper := settings.NewKeeper(directory + "\\config.json")
+	keeper := settings.NewKeeper(directory+"\\config.json", make(chan bool))
 	HandleOAuthRequest(callback, directory, keeper.GetRelevantSettings())
 }
 

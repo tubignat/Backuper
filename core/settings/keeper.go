@@ -14,13 +14,13 @@ type Keeper struct {
 	HasChanges     bool
 }
 
-func NewKeeper(configFilename string) *Keeper {
+func NewKeeper(configFilename string, update chan bool) *Keeper {
 	keeper := &Keeper{
 		ConfigFileName: configFilename,
 		Settings:       nil,
 		HasChanges:     false,
 	}
-	keeper.TrackConfig(configFilename)
+	keeper.TrackConfig(configFilename, update)
 	return keeper
 }
 
@@ -31,20 +31,23 @@ func (keeper *Keeper) GetRelevantSettings() *Settings {
 	return keeper.Settings
 }
 
-func (keeper *Keeper) TrackConfig(filename string) {
+func (keeper *Keeper) TrackConfig(filename string, update chan bool) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logging.Error("Failed to create watcher ", err)
 		return
 	}
-	go watchFileRoutine(watcher, &keeper.HasChanges)
+	watcher.Add(filename)
+	go watchFileRoutine(watcher, &keeper.HasChanges, update)
 }
 
-func watchFileRoutine(watcher *fsnotify.Watcher, hasChanges *bool) {
+func watchFileRoutine(watcher *fsnotify.Watcher, hasChanges *bool, update chan bool) {
+	defer watcher.Close()
 	for {
 		select {
 		case <-watcher.Events:
 			*hasChanges = true
+			update <- true
 			logging.Debug("Changes in the config file noted")
 		case err := <-watcher.Errors:
 			logging.Error("Watcher throwed an error ", err)
