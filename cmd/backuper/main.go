@@ -1,8 +1,8 @@
 package main
 
 import (
-	"backuper/api"
-	"backuper/settings"
+	"backuper/core/api"
+	"backuper/core/settings"
 	"fmt"
 	"log"
 )

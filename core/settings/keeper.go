@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"backuper/common"
+	"backuper/core/common"
 	"encoding/json"
 	"log"
 

@@ -9,9 +9,9 @@ package main
  */
 
 import (
-	"backuper/api"
-	"backuper/common"
-	"backuper/settings"
+	"backuper/core/api"
+	"backuper/core/common"
+	"backuper/core/settings"
 	"io/ioutil"
 	"log"
 	"net/http"

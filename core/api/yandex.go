@@ -1,7 +1,7 @@
 package api
 
 import (
-	"backuper/common"
+	"backuper/core/common"
 	"encoding/json"
 	"log"
 	"os/exec"
