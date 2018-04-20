@@ -21,16 +21,9 @@ import (
 )
 
 func main() {
-	f, err := os.OpenFile("C:\\Users\\Ignat\\Documents\\Git_repositories\\go_repositories\\src\\backuper\\testlogfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer f.Close()
-
-	log.SetOutput(f)
-
 	directory := os.Args[1]
 	callback := os.Args[2]
+	configureLogging(directory + "\\logs.txt")
 	keeper := settings.NewKeeper(directory + "\\config.json")
 	HandleOAuthRequest(callback, directory, keeper.GetRelevantSettings())
 }
@@ -66,4 +59,14 @@ func formEncodedURLValues(code, applicationId, password string) string {
 	data.Set("client_id", applicationId)
 	data.Set("client_secret", password)
 	return data.Encode()
+}
+
+func configureLogging(path string) {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Panic("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
 }
