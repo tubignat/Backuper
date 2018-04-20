@@ -2,8 +2,8 @@ package settings
 
 import (
 	"backuper/core/common"
+	"backuper/core/logging"
 	"encoding/json"
-	"log"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -15,11 +15,13 @@ type Keeper struct {
 }
 
 func NewKeeper(configFilename string) *Keeper {
-	return &Keeper{
+	keeper := &Keeper{
 		ConfigFileName: configFilename,
 		Settings:       nil,
 		HasChanges:     false,
 	}
+	keeper.TrackConfig(configFilename)
+	return keeper
 }
 
 func (keeper *Keeper) GetRelevantSettings() *Settings {
@@ -32,7 +34,8 @@ func (keeper *Keeper) GetRelevantSettings() *Settings {
 func (keeper *Keeper) TrackConfig(filename string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		logging.Error("Failed to create watcher ", err)
+		return
 	}
 	go watchFileRoutine(watcher, &keeper.HasChanges)
 }
@@ -42,16 +45,19 @@ func watchFileRoutine(watcher *fsnotify.Watcher, hasChanges *bool) {
 		select {
 		case <-watcher.Events:
 			*hasChanges = true
+			logging.Debug("Changes in the config file noted")
 		case err := <-watcher.Errors:
-			log.Panic(err)
+			logging.Error("Watcher throwed an error ", err)
 		}
 	}
 }
 func loadSettings(filename string) *Settings {
+	logging.Debug("Start loading settings from ", filename, "...")
 	var settings Settings
 	content := common.ReadFile(filename)
 	if error := json.Unmarshal(*content, &settings); error != nil {
-		log.Panic(error)
+		logging.Error(error, "Failed to load settings... ")
 	}
+	logging.Debug("Settings loaded successfully: ", settings)
 	return &settings
 }

@@ -2,8 +2,8 @@ package api
 
 import (
 	"backuper/core/common"
+	"backuper/core/logging"
 	"encoding/json"
-	"log"
 	"os/exec"
 	"time"
 )
@@ -27,13 +27,14 @@ type YandexApiClient struct {
 
 func NewYandexApiClient(applicationId string) *YandexApiClient {
 	var oauth OAuthResponse
-	if !common.IsExist("C:\\Connector\\stuff\\go\\src\\backuper\\yandex_token") {
+	if !common.IsExist("yandex_token") {
 		authenticate(applicationId)
 	}
 
 	content := common.ReadFile(YandexTokenFileName)
 	if error := json.Unmarshal(*content, &oauth); error != nil {
-		log.Fatal(error)
+		logging.Error("Could not read the token from a file ", error)
+		return nil
 	}
 	return &YandexApiClient{
 		Token: oauth.AccessToken,
@@ -45,15 +46,17 @@ func NewYandexApiClient(applicationId string) *YandexApiClient {
 	}
 }
 
-func authenticate(applicationId string) {
-	url := YandexOAuthURL + "&client_id=" + applicationId
+func authenticate(applicationID string) {
+	logging.Debug("Receiving Yandex token...")
+	url := YandexOAuthURL + "&client_id=" + applicationID
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	common.WaitUntil(func() bool {
 		return common.IsExist(YandexTokenFileName)
 	}, 5*time.Minute)
+	logging.Debug("Yandex token received...")
 }
 
 func (client *YandexApiClient) Backup(filename string) BackupResult {
-	log.Print("Yandex client is backing up...")
+	logging.Debug("Yandex client is backing up...")
 	return BackupResult{Status: Success}
 }

@@ -2,18 +2,19 @@ package main
 
 import (
 	"backuper/core/api"
+	"backuper/core/logging"
 	"backuper/core/settings"
 	"fmt"
-	"log"
 )
 
 func main() {
+	logging.Configure("logs.txt")
 	go start()
 	readCommands()
 }
 
 func start() {
-	log.Print("Program started...")
+	logging.Info("Configuring...")
 	keeper := settings.NewKeeper("config.json")
 	settings := keeper.GetRelevantSettings()
 	yandexClient := api.NewYandexApiClient(settings.Yandex.ApplicationID)
@@ -22,6 +23,8 @@ func start() {
 	backupFunc := getBackupFunc(yandexClient)
 
 	go watcher.watchAsync(backupFunc, stop)
+
+	logging.Info("Program started...")
 }
 
 func getBackupFunc(apiClient api.Client) func(filename string) {

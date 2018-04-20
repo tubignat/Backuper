@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"backuper/core/logging"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -10,7 +10,8 @@ import (
 func newSystemWatcher(filenames []string) *SystemWatcher {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		fmt.Println("Error has occured: ", err)
+		logging.Error("Error has occured: ", err)
+		return nil
 	}
 	return &SystemWatcher{filenames, watcher}
 }
@@ -21,7 +22,7 @@ type SystemWatcher struct {
 }
 
 func (watcher *SystemWatcher) watchAsync(onFileChanged func(filename string), quit chan bool) {
-	fmt.Println("Start watching...")
+	logging.Debug("Start watching...")
 	addFileWatchers(watcher)
 	defer watcher.watcher.Close()
 	for {
@@ -39,14 +40,14 @@ func watchAsyncInternal(watcher *SystemWatcher, onFileChanged func(filename stri
 		case event = <-watcher.watcher.Events:
 		case <-time.After(time.Second):
 		}
-		fmt.Printf("File %s has been changed, operation is %s\n", event.Name, event.Op)
+		logging.Debug("File %s has been changed, operation is %s\n", event.Name, event.Op)
 		onFileChanged(event.Name)
 		return false
 	case err := <-watcher.watcher.Errors:
-		fmt.Println("Error has occured", err)
+		logging.Error("Error has occured", err)
 		return false
 	case <-quit:
-		fmt.Println("Stop watching...")
+		logging.Debug("Stop watching...")
 		return true
 	}
 }
@@ -54,6 +55,6 @@ func watchAsyncInternal(watcher *SystemWatcher, onFileChanged func(filename stri
 func addFileWatchers(watcher *SystemWatcher) {
 	for _, file := range watcher.filenames {
 		watcher.watcher.Add(file)
-		fmt.Printf("File %s is being watched now...\n", file)
+		logging.Debug("File", file, "is being watched now...")
 	}
 }
