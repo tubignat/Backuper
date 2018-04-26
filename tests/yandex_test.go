@@ -15,7 +15,7 @@ func TestYandex(t *testing.T) {
 	filename := "file.txt"
 	text := []byte("Hello! this is a test file")
 	common.WriteFile(filename, &text)
-	client := api.NewYandexApiClient(applicationID)
+	client := api.NewYandexAPIClient(applicationID)
 	client.Backup(filename)
 	// TODO: add assertion that file has successfully uploaded to Yandex.Disk
 }

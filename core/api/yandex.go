@@ -14,10 +14,16 @@ import (
 )
 
 const (
-	YandexOAuthURL      = "https://oauth.yandex.com/authorize?response_type=code"
+	// YandexOAuthURL represents URL of Yandex OAuth service
+	YandexOAuthURL = "https://oauth.yandex.com/authorize?response_type=code"
+
+	// YandexTokenFileName is a name for the file that should contain authentication info.
+	// New instance of YandexAPIClient will look for this file and read a token if one exists,
+	// otherwise client will start authentication process and wait until the file appears
 	YandexTokenFileName = "yandex_token"
 )
 
+// OAuthResponse is a struct that represents Yandex.API OAuth response
 type OAuthResponse struct {
 	TokenType    string `json:"token_type"`
 	AccessToken  string `json:"access_token"`
@@ -25,15 +31,18 @@ type OAuthResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-type YandexApiClient struct {
+// YandexAPIClient is an implementation of api.Client interface for Yandex.Disk API
+type YandexAPIClient struct {
 	Token   string
 	Expires time.Time
 }
 
-func NewYandexApiClient(applicationId string) *YandexApiClient {
+// NewYandexAPIClient creates a new instance of YandexApiClient.
+// Calls authentication if user is not authenticated yet
+func NewYandexAPIClient(applicationID string) *YandexAPIClient {
 	var oauth OAuthResponse
 	if !common.IsExist("yandex_token") {
-		authenticate(applicationId)
+		authenticate(applicationID)
 	}
 
 	content := common.ReadFile(YandexTokenFileName)
@@ -43,7 +52,7 @@ func NewYandexApiClient(applicationId string) *YandexApiClient {
 	}
 
 	logging.Debug("Token readed", oauth.AccessToken)
-	return &YandexApiClient{
+	return &YandexAPIClient{
 		Token: oauth.AccessToken,
 		// this made for the testing purposes only
 		// TODO:
@@ -51,6 +60,15 @@ func NewYandexApiClient(applicationId string) *YandexApiClient {
 		//       # Check if token is still fresh. Otherwise refresh it
 		Expires: time.Now().Add(time.Second * time.Duration(oauth.ExpiresIn)),
 	}
+}
+
+// Backup stores a file on Yandex.Disk. If file is already exist there, it will be overwritten
+func (client *YandexAPIClient) Backup(filename string) BackupResult {
+	createBackuperFolderIfNotExist(client.Token)
+	result := requestUploadURL(filename, client.Token)
+	uploadFile(*result, filename, client.Token)
+	logging.Debug(result)
+	return BackupResult{Status: Success}
 }
 
 func authenticate(applicationID string) {
@@ -61,14 +79,6 @@ func authenticate(applicationID string) {
 		return common.IsExist(YandexTokenFileName)
 	}, 5*time.Minute)
 	logging.Debug("Yandex token received...")
-}
-
-func (client *YandexApiClient) Backup(filename string) BackupResult {
-	createBackuperFolderIfNotExist(client.Token)
-	result := requestUploadURL(filename, client.Token)
-	uploadFile(*result, filename, client.Token)
-	logging.Debug(result)
-	return BackupResult{Status: Success}
 }
 
 type uploadURLResponse struct {

@@ -20,7 +20,7 @@ func start() {
 		restart := make(chan bool)
 		keeper := settings.NewKeeper("config.json", restart)
 		settings := keeper.GetRelevantSettings()
-		yandexClient := api.NewYandexApiClient(settings.Yandex.ApplicationID)
+		yandexClient := api.NewYandexAPIClient(settings.Yandex.ApplicationID)
 		watcher := newSystemWatcher(settings.Files)
 		stop := make(chan bool)
 		backupFunc := getBackupFunc(yandexClient)
