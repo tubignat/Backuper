@@ -5,6 +5,11 @@ import (
 	"backuper/core/logging"
 	"backuper/core/settings"
 	"fmt"
+	"os/exec"
+)
+
+const (
+	help = "Available commands:\n    config - opens a config file in notepad\n    exit - closes the program\n"
 )
 
 func main() {
@@ -46,7 +51,14 @@ func readCommands() {
 	for {
 		command := ""
 		fmt.Scanln(&command)
-		if command == "exit" {
+		switch command {
+		case "help":
+			fmt.Print(help)
+		case "config":
+			if error := exec.Command("notepad", "config.json").Start(); error != nil {
+				logging.Error(error)
+			}
+		case "exit":
 			return
 		}
 	}

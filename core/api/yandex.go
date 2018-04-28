@@ -3,9 +3,8 @@ package api
 import (
 	"backuper/core/common"
 	"backuper/core/logging"
+	"backuper/core/net"
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -21,6 +20,9 @@ const (
 	// New instance of YandexAPIClient will look for this file and read a token if one exists,
 	// otherwise client will start authentication process and wait until the file appears
 	YandexTokenFileName = "yandex_token"
+
+	baseURL = "https://cloud-api.yandex.net/v1/disk/resources"
+	folder  = "backuper_app/"
 )
 
 // OAuthResponse is a struct that represents Yandex.API OAuth response
@@ -33,8 +35,9 @@ type OAuthResponse struct {
 
 // YandexAPIClient is an implementation of api.Client interface for Yandex.Disk API
 type YandexAPIClient struct {
-	Token   string
-	Expires time.Time
+	httpClient *net.ClientWrapper
+	Token      string
+	Expires    time.Time
 }
 
 // NewYandexAPIClient creates a new instance of YandexApiClient.
@@ -53,7 +56,8 @@ func NewYandexAPIClient(applicationID string) *YandexAPIClient {
 
 	logging.Debug("Token readed", oauth.AccessToken)
 	return &YandexAPIClient{
-		Token: oauth.AccessToken,
+		httpClient: net.NewHttpClientWrapper(baseURL, getAuthHeader(oauth.AccessToken)),
+		Token:      oauth.AccessToken,
 		// this made for the testing purposes only
 		// TODO:
 		//       # Need to store correct token expiration date
@@ -64,8 +68,8 @@ func NewYandexAPIClient(applicationID string) *YandexAPIClient {
 
 // Backup stores a file on Yandex.Disk. If file is already exist there, it will be overwritten
 func (client *YandexAPIClient) Backup(filename string) BackupResult {
-	createBackuperFolderIfNotExist(client.Token)
-	result := requestUploadURL(filename, client.Token)
+	client.createBackuperFolderIfNotExist()
+	result := client.requestUploadURL(filename)
 	uploadFile(*result, filename, client.Token)
 	logging.Debug(result)
 	return BackupResult{Status: Success}
@@ -87,73 +91,34 @@ type uploadURLResponse struct {
 	Templated bool   `json:"templated"`
 }
 
-var baseURL = "https://cloud-api.yandex.net/v1/disk/resources"
-var folder = "backuper_app/"
-
-func requestUploadURL(filename, token string) *string {
-	client := &http.Client{}
+func (yandexAPIClient *YandexAPIClient) requestUploadURL(filename string) *string {
 	data := url.Values{}
 	data.Set("path", folder+filename)
 	data.Set("overwrite", "true")
-	url := baseURL + "/upload?" + data.Encode()
-	logging.Debug("Sending request to ", url)
-	request, err := http.NewRequest("GET", url, strings.NewReader(""))
-	if err != nil {
-		logging.Error(err)
-		return nil
-	}
-	request.Header.Add("Authorization", "OAuth "+token)
-	response, err := client.Do(request)
-	if err != nil {
-		logging.Error(err)
-		return nil
-	}
-	body, _ := ioutil.ReadAll(response.Body)
-	logging.Debug("Got a response", string(body))
 
-	var responseStruct uploadURLResponse
-	err = json.Unmarshal(body, &responseStruct)
-	if err != nil {
-		logging.Error(err)
-		return nil
-	}
-	return &responseStruct.Href
+	var response uploadURLResponse
+	yandexAPIClient.httpClient.GET("/upload", data, &response)
+
+	return &response.Href
 }
 
 func uploadFile(uploadingURL, filename, token string) {
-	client := &http.Client{}
+	client := net.NewHttpClientWrapper(uploadingURL, getAuthHeader(token))
 	file, err := os.Open(filename)
 	if err != nil {
 		logging.Error(err)
 	}
-	request, err := http.NewRequest("PUT", uploadingURL, file)
-	if err != nil {
-		logging.Error(err)
-	}
-	request.Header.Add("Authorization", "OAuth "+token)
-	response, err := client.Do(request)
-	if err != nil {
-		logging.Error(err)
-	}
-	body, _ := ioutil.ReadAll(response.Body)
-	logging.Debug("Got a response", string(body))
+
+	client.PUT("", url.Values{}, file)
 }
 
-func createBackuperFolderIfNotExist(token string) {
-	client := &http.Client{}
+func (yandexAPIClient *YandexAPIClient) createBackuperFolderIfNotExist() {
 	data := url.Values{}
 	data.Set("path", folder)
-	url := baseURL + "?" + data.Encode()
-	logging.Debug("Sending request to ", url)
-	request, err := http.NewRequest("PUT", url, strings.NewReader(""))
-	if err != nil {
-		logging.Error(err)
-	}
-	request.Header.Add("Authorization", "OAuth "+token)
-	response, err := client.Do(request)
-	if err != nil {
-		logging.Error(err)
-	}
-	body, _ := ioutil.ReadAll(response.Body)
-	logging.Debug("Got a response", string(body))
+
+	yandexAPIClient.httpClient.PUT("", data, strings.NewReader(""))
+}
+
+func getAuthHeader(token string) net.Header {
+	return net.Header{Key: "Authorization", Value: "OAuth " + token}
 }
