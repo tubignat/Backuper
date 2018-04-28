@@ -12,13 +12,16 @@ import (
 	"backuper/core/api"
 	"backuper/core/common"
 	"backuper/core/logging"
+	"backuper/core/oauth"
 	"backuper/core/settings"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -54,8 +57,26 @@ func handleYandexAuth(request, directory string, settings *settings.YandexDiskSe
 		return
 	}
 	path := directory + "\\" + api.YandexTokenFileName
-	common.WriteFile(path, &body)
+	token := getTokenBody(&body)
+
+	common.WriteFile(path, token)
 	logging.Debug("Yandex auth handling succeeded. File ", path, " is written")
+}
+
+func getTokenBody(responseBody *[]byte) *[]byte {
+	var responseStruct oauth.APIResponse
+	if err := json.Unmarshal(*responseBody, &responseStruct); err != nil {
+		logging.Error(err)
+	}
+	token := oauth.Token{
+		Value:   responseStruct.AccessToken,
+		Expires: time.Now().Add(time.Second * time.Duration(responseStruct.ExpiresIn)),
+	}
+	result, err := json.Marshal(&token)
+	if err != nil {
+		logging.Error(err)
+	}
+	return &result
 }
 
 func formEncodedURLValues(code, applicationId, password string) string {

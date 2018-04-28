@@ -4,10 +4,12 @@ import (
 	"backuper/core/common"
 	"backuper/core/logging"
 	"backuper/core/net"
+	"backuper/core/oauth"
 	"encoding/json"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -25,14 +27,6 @@ const (
 	folder  = "backuper_app/"
 )
 
-// OAuthResponse is a struct that represents Yandex.API OAuth response
-type OAuthResponse struct {
-	TokenType    string `json:"token_type"`
-	AccessToken  string `json:"access_token"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-}
-
 // YandexAPIClient is an implementation of api.Client interface for Yandex.Disk API
 type YandexAPIClient struct {
 	httpClient *net.ClientWrapper
@@ -43,34 +37,34 @@ type YandexAPIClient struct {
 // NewYandexAPIClient creates a new instance of YandexApiClient.
 // Calls authentication if user is not authenticated yet
 func NewYandexAPIClient(applicationID string) *YandexAPIClient {
-	var oauth OAuthResponse
 	if !common.IsExist("yandex_token") {
 		authenticate(applicationID)
 	}
 
+	var token oauth.Token
 	content := common.ReadFile(YandexTokenFileName)
-	if error := json.Unmarshal(*content, &oauth); error != nil {
+	if error := json.Unmarshal(*content, &token); error != nil {
 		logging.Error("Could not read the token from a file ", error)
 		return nil
 	}
 
-	logging.Debug("Token readed", oauth.AccessToken)
+	if time.Now().After(token.Expires) {
+		authenticate(applicationID)
+	}
+
+	logging.Debug("Token readed", token.Value)
 	return &YandexAPIClient{
-		httpClient: net.NewHttpClientWrapper(baseURL, getAuthHeader(oauth.AccessToken)),
-		Token:      oauth.AccessToken,
-		// this made for the testing purposes only
-		// TODO:
-		//       # Need to store correct token expiration date
-		//       # Check if token is still fresh. Otherwise refresh it
-		Expires: time.Now().Add(time.Second * time.Duration(oauth.ExpiresIn)),
+		httpClient: net.NewHttpClientWrapper(baseURL, getAuthHeader(token.Value)),
+		Token:      token.Value,
+		Expires:    token.Expires,
 	}
 }
 
 // Backup stores a file on Yandex.Disk. If file is already exist there, it will be overwritten
 func (client *YandexAPIClient) Backup(filename string) BackupResult {
-	client.createBackuperFolderIfNotExist()
-	result := client.requestUploadURL(filename)
-	uploadFile(*result, filename, client.Token)
+	name := getFileNameWithoutVolumeName(filename)
+	result := client.requestUploadURL(name)
+	uploadFile(*result, name, client.Token)
 	logging.Debug(result)
 	return BackupResult{Status: Success}
 }
@@ -91,13 +85,13 @@ type uploadURLResponse struct {
 	Templated bool   `json:"templated"`
 }
 
-func (yandexAPIClient *YandexAPIClient) requestUploadURL(filename string) *string {
+func (client *YandexAPIClient) requestUploadURL(filename string) *string {
 	data := url.Values{}
 	data.Set("path", folder+filename)
 	data.Set("overwrite", "true")
 
 	var response uploadURLResponse
-	yandexAPIClient.httpClient.GET("/upload", data, &response)
+	client.httpClient.GET("/upload", data, &response)
 
 	return &response.Href
 }
@@ -112,13 +106,15 @@ func uploadFile(uploadingURL, filename, token string) {
 	client.PUT("", url.Values{}, file)
 }
 
-func (yandexAPIClient *YandexAPIClient) createBackuperFolderIfNotExist() {
-	data := url.Values{}
-	data.Set("path", folder)
-
-	yandexAPIClient.httpClient.PUT("", data, strings.NewReader(""))
-}
-
 func getAuthHeader(token string) net.Header {
 	return net.Header{Key: "Authorization", Value: "OAuth " + token}
+}
+
+func getFileNameWithoutVolumeName(filename string) string {
+	absolutePath, err := filepath.Abs(filename)
+	if err != nil {
+		logging.Error(err)
+	}
+	volume := filepath.VolumeName(absolutePath)
+	return strings.TrimPrefix(absolutePath, volume)
 }
