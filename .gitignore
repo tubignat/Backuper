@@ -26,4 +26,4 @@ tests/file.txt
 tests/yandex_token
 cmd/backuper/config.json
 cmd/backuper/yandex_token
-cmd/backuper/logs.txt
+cmd/backuper/logs.tx
